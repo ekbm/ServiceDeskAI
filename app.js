@@ -159,12 +159,33 @@ async function saveIntake() {
     showStage('call');
 }
 
-function saveCall() {
-  session.callNotes = val('call-notes');
-  if (!session.callNotes) { alert('Please add call notes before continuing.'); return; }
-  saveSession();
-  markDone('call');
-  showStage('triage');
+async function saveCall() {
+    session.callNotes = val('call-notes');
+    
+    if (!session.callNotes) {
+        alert('Please add call notes before continuing.');
+        return;
+    }
+
+    // --- NEW: Sync Call Notes to the Journey ---
+    try {
+        await fetch('/api/triage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ticketId: session.ticketId, // Used to find the right row
+                callNotes: session.callNotes 
+            })
+        });
+        console.log("Call notes synced to journey.");
+    } catch (err) {
+        console.error("Sync error:", err);
+    }
+    // -------------------------------------------
+
+    saveSession();
+    markDone('call');
+    showStage('triage');
 }
 
 function saveTriage() {
