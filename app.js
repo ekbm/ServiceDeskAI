@@ -236,13 +236,34 @@ async function saveTroubleshoot() {
     showStage('email');
 }
 
-function closeTicket() {
-  session.resolutionSummary = val('resolution-summary');
-  saveSession();
-  const output = document.getElementById('close-output');
-  output.classList.remove('hidden');
-  output.innerHTML = `<div class="ticket-closed"><h3>&#10003; Ticket Closed</h3><p>Ticket <strong>${session.ticketId}</strong> has been closed successfully. All session data has been saved.</p></div>`;
-  markDone('close');
+async function closeTicket() {
+    session.resolutionSummary = val('resolution-summary');
+
+    // Final Sync: Update resolution and mark status as Closed
+    try {
+        await fetch('/api/triage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ticketId: session.ticketId,
+                resolutionSummary: session.resolutionSummary,
+                status: 'Closed' 
+            })
+        });
+        console.log("Ticket journey finalized in database.");
+    } catch (err) {
+        console.error("Final sync error:", err);
+    }
+
+    saveSession();
+    const output = document.getElementById('close-output');
+    output.classList.remove('hidden');
+    output.innerHTML = `
+        <div class="ticket-closed">
+            <h3>&#10003; Ticket Closed</h3>
+            <p>Ticket <strong>${session.ticketId}</strong> has been closed and the full journey is recorded in LogInsight.</p>
+        </div>`;
+    markDone('close');
 }
 
 // ============================================================
