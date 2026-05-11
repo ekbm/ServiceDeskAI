@@ -211,12 +211,29 @@ async function saveTriage() {
     showStage('troubleshoot');
 }
 
-function saveTroubleshoot() {
-  session.troubleshootLog     = val('troubleshoot-log');
-  session.troubleshootOutcome = val('troubleshoot-outcome');
-  saveSession();
-  markDone('troubleshoot');
-  showStage('email');
+async function saveTroubleshoot() {
+    session.troubleshootLog     = val('troubleshoot-log');
+    session.troubleshootOutcome = val('troubleshoot-outcome');
+
+    // Sync Troubleshooting data to Supabase
+    try {
+        await fetch('/api/triage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ticketId: session.ticketId,
+                troubleshootLog: session.troubleshootLog,
+                troubleshootOutcome: session.troubleshootOutcome
+            })
+        });
+        console.log("Troubleshooting data synced.");
+    } catch (err) {
+        console.error("Sync error:", err);
+    }
+
+    saveSession();
+    markDone('troubleshoot');
+    showStage('email');
 }
 
 function closeTicket() {
