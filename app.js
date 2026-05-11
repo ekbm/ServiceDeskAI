@@ -112,23 +112,51 @@ function clearSession() {
 // ============================================================
 // Stage save handlers
 // ============================================================
-function saveIntake() {
-  session.ticketId          = val('ticket-id');
-  session.customerName      = val('customer-name');
-  session.customerEmail     = val('customer-email');
-  session.appName           = val('app-name');
-  session.issueDescription  = val('issue-description');
-  session.priority          = val('priority');
-  session.loggedTime        = val('logged-time');
+async function saveIntake() {
+    // 1. Capture current values from the form into the session object
+    session.ticketId          = val('ticket-id');
+    session.customerName      = val('customer-name');
+    session.customerEmail     = val('customer-email');
+    session.appName           = val('app-name');
+    session.issueDescription  = val('issue-description');
+    session.priority          = val('priority');
+    session.loggedTime        = val('logged-time');
 
-  if (!session.ticketId || !session.customerName || !session.issueDescription) {
-    alert('Please fill in Ticket ID, Customer Name, and Issue Description before continuing.');
-    return;
-  }
-  saveSession();
-  updateTicketRef();
-  markDone('intake');
-  showStage('call');
+    // 2. Validation
+    if (!session.ticketId || !session.customerName || !session.issueDescription) {
+        alert('Please fill in Ticket ID, Customer Name, and Issue Description before continuing.');
+        return;
+    }
+
+    // 3. NEW: Send data to your Vercel backend
+    try {
+        const response = await fetch('/api/triage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ticketId: session.ticketId,
+                customerName: session.customerName,
+                customerEmail: session.customerEmail,
+                appName: session.appName,
+                issueDescription: session.issueDescription,
+                priority: session.priority
+            })
+        });
+
+        if (response.ok) {
+            console.log("Journey synchronized with Supabase.");
+        } else {
+            console.error("Sync failed:", await response.text());
+        }
+    } catch (err) {
+        console.error("Network error connecting to Vercel:", err);
+    }
+
+    // 4. Existing logic to move to the next stage
+    saveSession();     // This is the line 128 you saw!
+    updateTicketRef();
+    markDone('intake');
+    showStage('call');
 }
 
 function saveCall() {
