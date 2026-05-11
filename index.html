@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Service Desk AI Assistant</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- API Key Modal -->
+<div id="api-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-icon">&#9881;</div>
+      <h2>API Key Required</h2>
+      <p>Enter your Anthropic API key to enable AI features. It's stored only in your browser and never sent to any server other than Anthropic.</p>
+    </div>
+    <input type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off">
+    <div class="modal-hint">Get your key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></div>
+    <button class="btn-primary" onclick="saveApiKey()">Save &amp; Continue</button>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <span class="brand-icon">&#128221;</span>
+    <span class="brand-name">Desk<em>AI</em></span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <button class="nav-item active" onclick="showStage('intake')" data-stage="intake">
+      <span class="nav-num">1</span>
+      <span>Ticket Intake</span>
+    </button>
+    <button class="nav-item" onclick="showStage('call')" data-stage="call">
+      <span class="nav-num">2</span>
+      <span>Customer Call</span>
+    </button>
+    <button class="nav-item" onclick="showStage('triage')" data-stage="triage">
+      <span class="nav-num">3</span>
+      <span>Triage &amp; Classify</span>
+    </button>
+    <button class="nav-item" onclick="showStage('troubleshoot')" data-stage="troubleshoot">
+      <span class="nav-num">4</span>
+      <span>Troubleshoot</span>
+    </button>
+    <button class="nav-item" onclick="showStage('email')" data-stage="email">
+      <span class="nav-num">5</span>
+      <span>Email Drafts</span>
+    </button>
+    <button class="nav-item" onclick="showStage('escalation')" data-stage="escalation">
+      <span class="nav-num">6</span>
+      <span>Escalation Pack</span>
+    </button>
+    <button class="nav-item" onclick="showStage('close')" data-stage="close">
+      <span class="nav-num">7</span>
+      <span>Close &amp; Document</span>
+    </button>
+  </nav>
+
+  <div class="sidebar-footer">
+    <button class="btn-ghost small" onclick="clearSession()">&#128465; New Ticket</button>
+    <button class="btn-ghost small" onclick="showApiModal()">&#9881; API Key</button>
+  </div>
+</aside>
+
+<!-- Main content -->
+<main class="main">
+
+  <!-- Header bar -->
+  <header class="topbar">
+    <div class="ticket-ref" id="ticket-ref">No active ticket</div>
+    <div class="topbar-right">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-label">Ready</span>
+    </div>
+  </header>
+
+  <!-- ===== STAGE 1: INTAKE ===== -->
+  <section class="stage active" id="stage-intake">
+    <div class="stage-header">
+      <h1>Ticket Intake</h1>
+      <p>Enter the details from the incoming ticket before calling the customer.</p>
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Ticket reference number</label>
+        <input type="text" id="ticket-id" placeholder="e.g. INC-20240511">
+      </div>
+      <div class="field">
+        <label>Customer name</label>
+        <input type="text" id="customer-name" placeholder="Full name">
+      </div>
+      <div class="field">
+        <label>Customer email</label>
+        <input type="email" id="customer-email" placeholder="email@company.com">
+      </div>
+      <div class="field">
+        <label>Application / system affected</label>
+        <input type="text" id="app-name" placeholder="e.g. SAP, Outlook, custom CRM">
+      </div>
+      <div class="field full">
+        <label>Issue description (from ticket)</label>
+        <textarea id="issue-description" rows="4" placeholder="What did the customer report?"></textarea>
+      </div>
+      <div class="field">
+        <label>Priority</label>
+        <select id="priority">
+          <option value="P3 - Low">P3 - Low</option>
+          <option value="P2 - Medium" selected>P2 - Medium</option>
+          <option value="P1 - High">P1 - High</option>
+          <option value="P0 - Critical">P0 - Critical</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Date / time logged</label>
+        <input type="datetime-local" id="logged-time">
+      </div>
+    </div>
+    <div class="action-bar">
+      <button class="btn-primary" onclick="saveIntake()">Save &amp; Go to Call Script &#8594;</button>
+    </div>
+  </section>
+
+  <!-- ===== STAGE 2: CALL ===== -->
+  <section class="stage" id="stage-call">
+    <div class="stage-header">
+      <h1>Customer Call</h1>
+      <p>Use the AI-generated script below. Check off each question as you go — answers build your triage summary automatically.</p>
+    </div>
+    <div class="ai-action-bar">
+      <button class="btn-ai" onclick="generateCallScript()">&#10024; Generate call script</button>
+    </div>
+    <div id="call-script-area" class="ai-output hidden"></div>
+
+    <div class="field" style="margin-top:1.5rem">
+      <label>Call notes — capture customer responses here</label>
+      <textarea id="call-notes" rows="8" placeholder="Type what the customer tells you during the call..."></textarea>
+    </div>
+    <div class="action-bar">
+      <button class="btn-primary" onclick="saveCall()">Save Notes &amp; Triage &#8594;</button>
+    </div>
+  </section>
+
+  <!-- ===== STAGE 3: TRIAGE ===== -->
+  <section class="stage" id="stage-triage">
+    <div class="stage-header">
+      <h1>Triage &amp; Classify</h1>
+      <p>AI analyses your call notes and classifies the fault type with recommended next steps.</p>
+    </div>
+    <div class="ai-action-bar">
+      <button class="btn-ai" onclick="runTriage()">&#10024; Classify fault</button>
+    </div>
+    <div id="triage-output" class="ai-output hidden"></div>
+
+    <div class="field" style="margin-top:1.5rem">
+      <label>Fault classification (confirm or override)</label>
+      <select id="fault-type">
+        <option value="">-- Awaiting triage --</option>
+        <option value="Hardware">Hardware</option>
+        <option value="Software / Application">Software / Application</option>
+        <option value="Network / Connectivity">Network / Connectivity</option>
+        <option value="User Access / Permissions">User Access / Permissions</option>
+        <option value="Unknown - needs investigation">Unknown - needs investigation</option>
+      </select>
+    </div>
+    <div class="action-bar">
+      <button class="btn-primary" onclick="saveTriage()">Confirm &amp; Get Steps &#8594;</button>
+    </div>
+  </section>
+
+  <!-- ===== STAGE 4: TROUBLESHOOT ===== -->
+  <section class="stage" id="stage-troubleshoot">
+    <div class="stage-header">
+      <h1>Troubleshooting Steps</h1>
+      <p>Work through each step and tick them off as you go. The log is saved automatically.</p>
+    </div>
+    <div class="ai-action-bar">
+      <button class="btn-ai" onclick="generateSteps()">&#10024; Generate steps for this fault</button>
+    </div>
+    <div id="steps-output" class="ai-output hidden"></div>
+
+    <div class="field" style="margin-top:1.5rem">
+      <label>Troubleshooting log — what did you try and what happened?</label>
+      <textarea id="troubleshoot-log" rows="6" placeholder="Step 1: Rebooted machine — issue persisted&#10;Step 2: Ran MemTest86 — no errors found..."></textarea>
+    </div>
+    <div class="field">
+      <label>Outcome</label>
+      <select id="troubleshoot-outcome">
+        <option value="">-- Select outcome --</option>
+        <option value="Resolved">Resolved</option>
+        <option value="Partially resolved - monitoring">Partially resolved - monitoring</option>
+        <option value="Unresolved - needs escalation">Unresolved - needs escalation</option>
+      </select>
+    </div>
+    <div class="action-bar">
+      <button class="btn-primary" onclick="saveTroubleshoot()">Save &amp; Draft Email &#8594;</button>
+    </div>
+  </section>
+
+  <!-- ===== STAGE 5: EMAIL ===== -->
+  <section class="stage" id="stage-email">
+    <div class="stage-header">
+      <h1>Email Drafts</h1>
+      <p>Generate ready-to-send emails for each stage of the ticket lifecycle.</p>
+    </div>
+    <div class="email-buttons">
+      <button class="btn-ai" onclick="generateEmail('initial')">&#9993; Initial contact email</button>
+      <button class="btn-ai" onclick="generateEmail('findings')">&#9993; Findings &amp; update email</button>
+      <button class="btn-ai" onclick="generateEmail('escalation')">&#9993; Escalation notification email</button>
+      <button class="btn-ai" onclick="generateEmail('resolution')">&#9993; Resolution confirmation email</button>
+    </div>
+    <div id="email-output" class="ai-output hidden"></div>
+    <div class="action-bar" style="margin-top:1.5rem">
+      <button class="btn-primary" onclick="showStage('escalation')">Next: Escalation Pack &#8594;</button>
+    </div>
+  </section>
+
+  <!-- ===== STAGE 6: ESCALATION ===== -->
+  <section class="stage" id="stage-escalation">
+    <div class="stage-header">
+      <h1>Escalation Pack</h1>
+      <p>Generate a complete escalation document to attach when raising a vendor case.</p>
+    </div>
+
+    <div class="field">
+      <label>Vendor / escalation target</label>
+      <input type="text" id="vendor-name" placeholder="e.g. Microsoft, Dell, SAP Support">
+    </div>
+    <div class="field">
+      <label>Screenshots &amp; logs collected (describe what you have)</label>
+      <textarea id="evidence-list" rows="4" placeholder="e.g. Event Viewer export (Application log), screenshot of error 0x0000007E, CrystalDiskInfo report showing 12 reallocated sectors..."></textarea>
+    </div>
+
+    <div class="ai-action-bar" style="margin-top:1rem">
+      <button class="btn-ai" onclick="generateEscalationPack()">&#10024; Build escalation pack</button>
+    </div>
+    <div id="escalation-output" class="ai-output hidden"></div>
+    <div class="action-bar" style="margin-top:1.5rem">
+      <button class="btn-primary" onclick="showStage('close')">Next: Close Ticket &#8594;</button>
+    </div>
+  </section>
+
+  <!-- ===== STAGE 7: CLOSE ===== -->
+  <section class="stage" id="stage-close">
+    <div class="stage-header">
+      <h1>Close &amp; Document</h1>
+      <p>Generate closure notes and a knowledge base article for future reference.</p>
+    </div>
+    <div class="field">
+      <label>Resolution summary (what fixed it?)</label>
+      <textarea id="resolution-summary" rows="4" placeholder="Describe exactly what resolved the issue..."></textarea>
+    </div>
+    <div class="ai-action-bar">
+      <button class="btn-ai" onclick="generateClosureNotes()">&#10024; Generate closure notes</button>
+      <button class="btn-ai" onclick="generateKBArticle()">&#10024; Draft KB article</button>
+    </div>
+    <div id="close-output" class="ai-output hidden"></div>
+
+    <div class="action-bar" style="margin-top:1.5rem">
+      <button class="btn-success" onclick="closeTicket()">&#10003; Mark ticket closed</button>
+      <button class="btn-ghost" onclick="exportSession()">&#8681; Export full session log</button>
+    </div>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
