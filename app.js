@@ -188,12 +188,27 @@ async function saveCall() {
     showStage('triage');
 }
 
-function saveTriage() {
-  session.faultType = val('fault-type');
-  if (!session.faultType || session.faultType === '') { alert('Please select a fault type.'); return; }
-  saveSession();
-  markDone('triage');
-  showStage('troubleshoot');
+async function saveTriage() {
+    session.faultType = val('fault-type');
+    if (!session.faultType || session.faultType === '') {
+        alert('Please select a fault type.');
+        return;
+    }
+
+    try {
+        await fetch('/api/triage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ticketId: session.ticketId,
+                faultType: session.faultType
+            })
+        });
+    } catch (err) { console.error("Sync error:", err); }
+
+    saveSession();
+    markDone('triage');
+    showStage('troubleshoot');
 }
 
 function saveTroubleshoot() {
